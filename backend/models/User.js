@@ -17,8 +17,7 @@ const UserSchema = new mongoose.Schema({
     password:{
         type:String,
         required: [true, "please add a password"],
-        minlength: 6,
-        match: [/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,10}$/, "Please provide valid password"]
+        minlength: 6        
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date
@@ -57,7 +56,7 @@ UserSchema.methods.getSignedToken = function(){
 }
 
 UserSchema.methods.getResetPasswordToken = function (){
-    
+
     const resetToken = crypto.randomBytes(20).toString("hex");
 
     this.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");

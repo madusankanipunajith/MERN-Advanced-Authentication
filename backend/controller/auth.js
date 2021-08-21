@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const ErrorResponse = require('../utils/errorResponse');
+const sendEmail = require('../utils/sendEmail');
 
 exports.register = async (req, res, next) =>{
     const {username, email, password} = req.body;
@@ -55,18 +57,54 @@ exports.forgotpassword = async (req, res, next) =>{
         `
 
         try{
-
+            await sendEmail({
+                to: user.email,
+                subject: "Password Reset Request",
+                text: message
+            })
+            res.status(200).json({
+                success: true,
+                data: "Email Sent"
+            })
         }catch(error){
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpire = undefined;
 
+            await user.save();
+
+            return next(new ErrorResponse("Email could not be send", 500))
         }
 
     }catch(error){
-
+        next(error)
     }
 }
 
-exports.resetpassword = (req, res, next) =>{
-    res.send("Reset Password Route");
+exports.resetpassword = async (req, res, next) =>{
+    const resetPasswordToken = crypto.createHash("sha256").update(req.params.resetToken).digest("hex");
+    try{
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: {$gt: Date.now()}
+        })
+
+        if(!user){
+            return next(new ErrorResponse("Invalid reset token",400))
+        }
+
+        user.password = req.body.password;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+
+        await user.save();
+
+        res.status(201).json({
+            success: true,
+            data: "Password Reset Success"
+        })
+    }catch(error){
+        next(error)
+    }
 }
 
 const sendToken = (user, statusCode, res)=>{
